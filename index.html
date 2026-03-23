@@ -555,15 +555,50 @@ async function sbLoadFriends(){
   if(!sbProfile)return[];
   try{
     const{data}=await sb.from('friends').select('friend_id,profiles:friend_id(id,nick,gender,av_type,av_idx,gold)').eq('user_id',sbProfile.id);
-    return data||[];
+    const msgs=data||[];
+    for(const m of msgs){
+      try{m.body=await decryptMsg(m.body,m.from_id);}catch(e){}
+      try{await sb.from('messages').delete().eq('id',m.id);}catch(e){}
+    }
+    return msgs;
   }catch(e){return[];}
 }
 
-// Send message via Supabase
+// ===== E2E ENCRYPTION =====
+async function deriveKey(myId,theirId){
+  const pair=[myId,theirId].sort().join(':');
+  const enc=new TextEncoder();
+  const km=await crypto.subtle.importKey('raw',enc.encode(pair),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('barnoir-e2e'),iterations:100000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptMsg(text,theirId){
+  try{
+    const key=await deriveKey(sbProfile.id,theirId);
+    const enc=new TextEncoder();
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(text));
+    const buf=new Uint8Array(iv.length+ct.byteLength);
+    buf.set(iv);buf.set(new Uint8Array(ct),iv.length);
+    return btoa(String.fromCharCode(...buf));
+  }catch(e){return text;}
+}
+async function decryptMsg(cipher,theirId){
+  try{
+    if(!cipher||cipher.length<20)return cipher;
+    const key=await deriveKey(sbProfile.id,theirId);
+    const raw=Uint8Array.from(atob(cipher),c=>c.charCodeAt(0));
+    const iv=raw.slice(0,12);const ct=raw.slice(12);
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+    return new TextDecoder().decode(pt);
+  }catch(e){return cipher;}
+}
+
+// Send message via Supabase (encrypted)
 async function sbSendMsg(toId,body,timer){
   if(!sbProfile)return;
   try{
-    await sb.from('messages').insert({from_id:sbProfile.id,to_id:toId,body,timer:timer||300});
+    const encBody=await encryptMsg(body,toId);
+    await sb.from('messages').insert({from_id:sbProfile.id,to_id:toId,body:encBody,timer:timer||300});
   }catch(e){}
 }
 
@@ -624,6 +659,9 @@ function sbSubscribeMessages(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'to_id=eq.'+sbProfile.id},async payload=>{
       const m=payload.new;
       if(m){
+        // Decrypt message and delete from server
+        try{m.body=await decryptMsg(m.body,m.from_id);}catch(e){}
+        try{await sb.from('messages').delete().eq('id',m.id);}catch(e){}
         // Fetch sender profile for display
         let senderName='誰か',senderAv='💬';
         try{
@@ -1511,6 +1549,11 @@ document.addEventListener('keydown',e=>{
   // 4) Disable context menu (long-press save image etc.)
   document.addEventListener('contextmenu',e=>{e.preventDefault();});
 })();
+
+// ===== SERVICE WORKER =====
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
