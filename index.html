@@ -468,6 +468,29 @@ button,input,select,textarea{position:relative;z-index:2;font-family:inherit;}
   </div>
 </div>
 
+
+<div class="modal-bg" id="modalAbout">
+  <div class="modal" style="max-height:85vh">
+    <h3>🍸 BAR NOIR について</h3>
+    <div style="font-size:11px;color:#a09080;line-height:2;text-align:left;padding:0 4px">
+      <div style="color:#c0a060;font-weight:700;margin-bottom:4px">▶ 安全性について</div>
+      BAR NOIRはあなたのプライバシーを最優先に設計されています。<br><br>
+      <b>• エンドツーエンド暗号化（E2E）</b><br>
+      すべてのメッセージはAES-256-GCMで暗号化され、送信者と受信者以外は誰も内容を見ることができません。運営も含め、第三者がメッセージを解読することは不可能です。<br><br>
+      <b>• メッセージは保存されません</b><br>
+      メッセージは受信後にサーバーから即座に削除されます。端末上でもブラウザのメモリに一時的に存在するだけで、アプリを閉じれば完全に消えます。ログや履歴は一切保管していません。<br><br>
+      <b>• 招待コードの匿名性</b><br>
+      招待コードはランダムに生成されます。コードから送った人・使った人を特定することはできません。コードの使用履歴や利用者の紐付けは記録されません。<br><br>
+      <b>• データは端末のみ</b><br>
+      アカウント情報はあなたの端末のブラウザ内にのみ保存されます。サーバーに個人情報が保存されることはありません。<br><br>
+      <div style="color:#c0a060;font-weight:700;margin:8px 0 4px">▶ 免責事項</div>
+      本アプリは合法的なプライベートコミュニケーションを目的としています。<b>犯罪行為や違法行為に使用することを固く禁じます。</b><br><br>
+      運営は利用者の行動について一切の責任を負いません。また、メッセージのログや通信履歴は一切保管しておらず、問い合わせや開示要求を受けても提出できる情報はありません。<br><br>
+      <div style="text-align:center;color:#605040;font-size:9px;margin-top:8px">BAR NOIR v1.0</div>
+    </div>
+    <button class="modal-close" onclick="closeModal('modalAbout')">閉じる</button>
+  </div>
+</div>
 <div class="burn" id="burnOL"><div class="burn-e">🔥</div><div class="burn-t">記録は灰になった。</div></div>
 <div class="toast" id="toastEl"></div>
 <div class="gnotif" id="gNotif" onclick="dismissGNotif()">
@@ -507,7 +530,7 @@ async function sbSaveProfile(nick,gender,invCode){
   if(!sbUser)return null;
   try{
     const{data,error}=await sb.from('profiles').insert({
-      nick,gender,av_type:'base',av_idx:0,gold:100,invite_code:invCode||null
+      nick,gender,av_type:'base',av_idx:0,gold:100
     }).select().single();
     if(error){console.warn('sbSave:',error.message);return null;}
     sbProfile=data;
@@ -519,7 +542,7 @@ async function sbSaveProfile(nick,gender,invCode){
 async function sbSaveInviteCode(code){
   if(!sbProfile)return;
   try{
-    await sb.from('invite_codes').insert({code,created_by:sbProfile.id});
+    await sb.from('invite_codes').insert({code});
   }catch(e){console.warn('sbSaveCode:',e);}
 }
 
@@ -1429,6 +1452,7 @@ function renderProf(){
   h+=`<button class="p-btn" onclick="document.getElementById('modalGold').classList.add('on')">💰 ゴールドを購入</button>`;
   h+=`<button class="p-btn" onclick="document.getElementById('modalPlan').classList.add('on')">⭐ プランを変更</button>`;
   h+=`<button class="p-btn" onclick="showChangePw()">🔑 合言葉を変更</button>`;
+  h+=`<button class="p-btn" onclick="document.getElementById('modalAbout').classList.add('on')">🍸 このアプリについて</button>`;
   h+=`<button class="p-del" onclick="if(confirm('データを完全に消しますか？')){localStorage.removeItem('bn_user');localStorage.removeItem('bn_codes');U=null;show('title');}">データを完全に消す</button>`;
   document.getElementById('profBody').innerHTML=h;
 }
