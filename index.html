@@ -801,6 +801,11 @@ async function checkInvite(){
   try{const stored=localStorage.getItem('bn_codes');
     if(stored){JSON.parse(stored).forEach(c=>{if(!c.used)valid.push(c.code.toLowerCase());});}}catch(e){}
 
+  // Also check Supabase invite_codes table
+  if(!valid.includes(code)&&sb){
+    const sbResult=await sbCheckInvite(code);
+    if(sbResult)valid.push(code);
+  }
   if(valid.includes(code)){
     // Mark code as used in bn_codes
     try{const stored=localStorage.getItem('bn_codes');
