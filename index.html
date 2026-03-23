@@ -641,7 +641,7 @@ function sbSubscribeMessages(){
         sendBrowserNotif('🍸 BAR NOIR',senderName+': '+preview);
         // If currently chatting with sender, add to chat
         if(sbChatTarget&&sbChatTarget.id===m.from_id){
-          chatMsgs.push({w:''them',n:senderName,t:m.body,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});
+          chatMsgs.push({w:'them',n:senderName,t:m.body,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});
           updateChatMsgs();
         }
       }
