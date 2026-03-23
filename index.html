@@ -391,7 +391,7 @@ button,input,select,textarea{position:relative;z-index:2;font-family:inherit;}
       <tr><td>フルハウス</td><td>3つ+2つの組</td><td>25点</td></tr>
       <tr><td>小ストレート</td><td>4つ連続</td><td>30点</td></tr>
       <tr><td>大ストレート</td><td>5つ連続</td><td>40点</td></tr>
-      <tr><td>パーフェクト</td><td>5つ全部同じ</td><td>50点</td></tr>
+      <tr><td>YAZZZY</td><td>5つ全部同じ</td><td>50点</td></tr>
       <tr><td>チャンス</td><td>条件なし</td><td>全合計</td></tr>
     </table>
     上段合計63以上で +35点ボーナス！
@@ -1089,14 +1089,14 @@ function calc(d,cat){
     case 'フルハウス':return(vals.includes(3)&&vals.includes(2))?25:0;
     case '小スト':return(u.join('').match(/1234|2345|3456/))?30:0;
     case '大スト':return(u.length===5&&u[4]-u[0]===4)?40:0;
-    case 'パーフェクト':return vals.some(v=>v===5)?50:0;
+    case 'YAZZZY':return vals.some(v=>v===5)?50:0;
     case 'チャンス':return sum;
     default:return 0;
   }
 }
 
 const UPPER=['1の目','2の目','3の目','4の目','5の目','6の目'];
-const LOWER=['スリーカード','フォーカード','フルハウス','小スト','大スト','パーフェクト','チャンス'];
+const LOWER=['スリーカード','フォーカード','フルハウス','小スト','大スト','YAZZZY','チャンス'];
 const ICONS=['⚀','⚁','⚂','⚃','⚄','⚅'];
 const HOWS=['1だけ合計','2だけ合計','3だけ合計','4だけ合計','5だけ合計','6だけ合計'];
 const LHOWS=['3つ同じ→全合計','4つ同じ→全合計','3+2→25点','4連続→30点','5連続→40点','全同じ→50点','条件なし→全合計'];
