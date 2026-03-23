@@ -838,13 +838,21 @@ function selGender(g){gender=g;
   document.getElementById('gbM').classList.toggle('sel',g==='m');
   document.getElementById('gbF').classList.toggle('sel',g==='f');}
 
-function doRegister(){
+async function doRegister(){
   const pw=document.getElementById('regPw').value.trim();
   const q=document.getElementById('regQ').value;
   const a=document.getElementById('regA').value.trim();
   const nick=document.getElementById('regNick').value.trim();
   if(!pw||!a||!nick){
     const err=document.getElementById('regErr');err.textContent='全部入力してね';err.classList.add('show');return;}
+  // Check nickname uniqueness on Supabase
+  if(sb){
+    try{
+      const{data}=await sb.from('profiles').select('id').ilike('nick',nick).limit(1);
+      if(data&&data.length>0){
+        const err=document.getElementById('regErr');err.textContent='そのニックネームは既に使われています';err.classList.add('show');return;}
+    }catch(e){}
+  }
   const usedCode=(document.getElementById('invCode')?document.getElementById('invCode').value.trim().toLowerCase():'');
   U={pw,q,a,gender,nick,gold:100,codes:[],avIdx:0,_r:_h(usedCode)===_MK};
   save();
@@ -1420,11 +1428,24 @@ function renderProf(){
 
   h+=`<button class="p-btn" onclick="document.getElementById('modalGold').classList.add('on')">💰 ゴールドを購入</button>`;
   h+=`<button class="p-btn" onclick="document.getElementById('modalPlan').classList.add('on')">⭐ プランを変更</button>`;
+  h+=`<button class="p-btn" onclick="showChangePw()">🔑 合言葉を変更</button>`;
   h+=`<button class="p-del" onclick="if(confirm('データを完全に消しますか？')){localStorage.removeItem('bn_user');localStorage.removeItem('bn_codes');U=null;show('title');}">データを完全に消す</button>`;
   document.getElementById('profBody').innerHTML=h;
 }
 
 function setAv(type,i){if(U){U.avType=type;U.avIdx=i;save();renderProf();}}
+
+function showChangePw(){
+  if(!U)return;
+  const ans=prompt('秘密の質問: '+U.q);
+  if(ans===null)return;
+  if(ans.trim()!==U.a){toast('答えが違います');return;}
+  const np=prompt('新しい合言葉を入力してください');
+  if(!np||!np.trim()){toast('入力されていません');return;}
+  const cf=prompt('もう一度入力してください（確認）');
+  if(np.trim()!==cf?.trim()){toast('一致しません');return;}
+  U.pw=np.trim();save();toast('合言葉を変更しました');
+}
 
 // Utils
 const APP_URL='https://neodealstyle.github.io/app'; // ← 本番URL
