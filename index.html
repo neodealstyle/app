@@ -540,9 +540,9 @@ async function sbSaveProfile(nick,gender,invCode){
 
 // Save invite code to Supabase
 async function sbSaveInviteCode(code){
-  if(!sbProfile)return;
+  if(!sb)return;
   try{
-    await sb.from('invite_codes').insert({code});
+    await sb.from('invite_codes').insert({code:code.toUpperCase()});
   }catch(e){console.warn('sbSaveCode:',e);}
 }
 
@@ -817,42 +817,39 @@ setTimeout(()=>{
 async function checkInvite(){
   const code=document.getElementById('invCode').value.trim().toLowerCase();
   if(!code){return;}
-  const valid=[];if(_h(code)===_MK)valid.push(code);
-  // Check user-generated codes
-  if(U&&U.codes){U.codes.forEach(c=>{if(!c.used)valid.push(c.code.toLowerCase());});}
-  // Check all stored codes
-  try{const stored=localStorage.getItem('bn_codes');
-    if(stored){JSON.parse(stored).forEach(c=>{if(!c.used)valid.push(c.code.toLowerCase());});}}catch(e){}
-
-  // Also check Supabase invite_codes table
-  if(!valid.includes(code)&&sb){
-    const sbResult=await sbCheckInvite(code);
-    if(sbResult)valid.push(code);
+  const codeUpper=code.toUpperCase();
+  if(_h(code)===_MK){
+    document.getElementById('invErr').classList.remove('show');
+    show('reg');return;
   }
-  if(valid.includes(code)){
-    // Mark code as used in bn_codes
+  let localValid=false;
+  if(U&&U.codes){localValid=U.codes.some(c=>c.code.toUpperCase()===codeUpper&&!c.used);}
+  if(!localValid){
+    try{const stored=localStorage.getItem('bn_codes');
+      if(stored){localValid=JSON.parse(stored).some(c=>c.code.toUpperCase()===codeUpper&&!c.used);}
+    }catch(e){}
+  }
+  let sbCode=null;
+  if(!localValid&&sb){
+    sbCode=await sbCheckInvite(codeUpper);
+    if(sbCode)localValid=true;
+  }
+  if(localValid){
     try{const stored=localStorage.getItem('bn_codes');
       if(stored){const arr=JSON.parse(stored);
-        const found=arr.find(c=>c.code.toLowerCase()===code&&!c.used);
+        const found=arr.find(c=>c.code.toUpperCase()===codeUpper&&!c.used);
         if(found){found.used=true;localStorage.setItem('bn_codes',JSON.stringify(arr));}
       }
     }catch(e){}
-    // Mark in user's codes too (if inviter is on same device)
-    if(U&&U.codes){const uc=U.codes.find(c=>c.code.toLowerCase()===code&&!c.used);if(uc){uc.used=true;save();}}
+    if(U&&U.codes){const uc=U.codes.find(c=>c.code.toUpperCase()===codeUpper&&!c.used);if(uc){uc.used=true;save();}}
+    if(sbCode){sbUseInvite(sbCode.id,sbUser?sbUser.id:null);}
+    else if(sb){const sc=await sbCheckInvite(codeUpper);if(sc)sbUseInvite(sc.id,sbUser?sbUser.id:null);}
     document.getElementById('invErr').classList.remove('show');
     show('reg');
   }else{
-    // Check Supabase for the code
-    const sbCode=await sbCheckInvite(code.toUpperCase());
-    if(sbCode){
-      sbUseInvite(sbCode.id,sbUser?sbUser.id:null);
-      document.getElementById('invErr').classList.remove('show');
-      show('reg');
-    }else{
-      const err=document.getElementById('invErr');
-      err.textContent='そのコードは使えないな。もう一度確認してくれ。';
-      err.classList.add('show');
-    }
+    const err=document.getElementById('invErr');
+    err.textContent='そのコードは使えないな。もう一度確認してくれ。';
+    err.classList.add('show');
   }
 }
 
