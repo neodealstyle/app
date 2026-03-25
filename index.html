@@ -383,6 +383,14 @@ button,input,select,textarea{position:relative;z-index:2;font-family:inherit;}
     <div class="f-err" id="loginErr"></div>
     <button class="f-btn" onclick="doLogin()">入店</button>
     <button class="f-link" onclick="doRecover()">合言葉を忘れた？</button>
+    <div id="dtWrap" style="display:none;margin-top:12px;">
+      <div style="font-size:11px;color:#c0a060;margin-bottom:6px;">ニックネームと合言葉で復元</div>
+      <input class="f-in" id="dtNick" placeholder="ニックネーム...">
+      <input class="f-in" id="dtPw" placeholder="合言葉..." style="margin-top:6px;">
+      <button class="f-btn" onclick="doDeviceTransfer()" style="margin-top:8px;">復元する</button>
+      <div class="f-err" id="dtErr"></div>
+    </div>
+    <button class="f-link" onclick="document.getElementById('dtWrap').style.display=document.getElementById('dtWrap').style.display==='none'?'block':'none'">機種変更？</button>
   </div>
 </div>
 
@@ -863,8 +871,8 @@ setTimeout(()=>{
 },3000);
 
 // ===== INVITE =====
-async let _invParentId=null;
-function checkInvite(){
+let _invParentId=null;
+async function checkInvite(){
   const code=document.getElementById('invCode').value.trim().toLowerCase();
   if(!code){return;}
   const codeUpper=code.toUpperCase();
@@ -927,7 +935,7 @@ async function doRegister(){
   U={pw,q,a,gender,nick,gold:100,codes:[],avIdx:0,_r:_h(usedCode)===_MK};
   save();
   // Save to Supabase
-  sbSaveProfile(nick,gender,usedCode,_invParentId).then(id=>{
+  window._regPwHash=_h(pw);window._regQ=q;window._regA=_h(a); sbSaveProfile(nick,gender,usedCode,_invParentId).then(id=>{
     if(id){U.sbId=id;save();sbSubscribeMessages();}
   });
   show('lobby');
@@ -947,6 +955,21 @@ function doLogin(){
     document.getElementById('loginErr').classList.add('show');}
 }
 
+async function doDeviceTransfer(){
+ const nick=document.getElementById('dtNick').value.trim();
+ const pw=document.getElementById('dtPw').value.trim();
+ const err=document.getElementById('dtErr');
+ if(!nick||!pw){err.textContent='両方入力してね';err.classList.add('show');return;}
+ err.classList.remove('show');
+ try{
+  const{data}=await sb.from('profiles').select('*').ilike('nick',nick).single();
+  if(!data){err.textContent='そのニックネームは見つからない';err.classList.add('show');return;}
+  if(!data.pw_hash||data.pw_hash!==_h(pw)){err.textContent='合言葉が違うよ';err.classList.add('show');return;}
+  U={pw,q:data.secret_q||'',a:'',gender:data.gender||'m',nick:data.nick,gold:data.gold||100,codes:[],avIdx:data.av_idx||0,sbId:data.id,_r:false};
+  save();sbProfile=data;
+  show('lobby');requestNotifPerm();sbInit().then(()=>{sbSubscribeMessages();});
+ }catch(e){err.textContent='復元に失敗しました';err.classList.add('show');}
+}
 function doRecover(){
   if(!U){const stored=localStorage.getItem('bn_user');if(stored)U=JSON.parse(stored);}
   if(!U){toast('アカウントが見つかりません');return;}
