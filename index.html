@@ -622,11 +622,12 @@ async function sbSearchNick(nick){
   }catch(e){return[];}
 }
 async function sbSendFriendReq(toId,msg){
-  if(!sb||!sbProfile)return false;
+  if(!sb||!sbProfile){console.warn('sbSend:no sb/profile');return false;}
   try{
     const{error}=await sb.from('friend_requests').insert({from_id:sbProfile.id,to_id:toId,message:msg});
-    return !error;
-  }catch(e){return false;}
+    if(error)console.warn('sbSend err:',error.message);
+ return !error;
+  }catch(e){console.warn('sbSend catch:',e);return false;}
 }
 async function sbGetPendingReqs(){
   if(!sb||!sbProfile)return[];
@@ -989,7 +990,7 @@ function lobTab(btn,tab){
     }
     h+='<div class="fr-divider">🔍 フレンド検索</div>';
     h+='<div class="fr-search">';
-    h+='<input id="frSearchInput" class="fr-input" placeholder="ニックネームで検索...">';
+    h+='<input id="frSearchInput" class="fr-input" placeholder="ニックネームで検索..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();doFriendSearch();}">';
     h+='<button class="fr-btn" onclick="doFriendSearch()">🔍</button>';
     h+='</div>';
     h+='<div id="frSearchResult"></div>';
@@ -1534,6 +1535,7 @@ async function loadSbFriends(){
 async function doFriendSearch(){
  const input=document.getElementById('frSearchInput');
  if(!input)return;
+ input.blur();input.focus();
  const nick=input.value.trim();
  if(!nick){toast('ニックネームを入力してくれ');return;}
  const results=await sbSearchNick(nick);
@@ -1564,7 +1566,7 @@ async function sendFriendReq(toId){
  if(!msg){toast('メッセージを入力してくれ');return;}
  const ok=await sbSendFriendReq(toId,msg);
  if(ok){toast('\u{1F4E9} リクエストを送った！');document.getElementById('frSearchResult').innerHTML='<div class="empty-msg">\u2705 送信済み</div>';}
- else{toast('送信できなかった（既にリクエスト済みかも）');}
+ else{toast('送信できなかった。もう一度試してください。');}
 }
 async function loadPendingRequests(){
  const div=document.getElementById('frPendingList');
