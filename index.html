@@ -733,14 +733,17 @@ function sendBrowserNotif(title,body){
 }
 
 // Subscribe to realtime messages
+let _msgSubActive=false;
 function sbSubscribeMessages(){
-  if(!sbProfile)return;
+  if(!sbProfile||_msgSubActive)return;
+  _msgSubActive=true;
   requestNotifPerm();
   sb.channel('msgs-'+sbProfile.id)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'to_id=eq.'+sbProfile.id},async payload=>{
       const m=payload.new;
       if(m){
-        /* Decrypt once */
+        console.log('[BAR NOIR] msg received from:'+m.from_id);
+         /* Decrypt once */
         let plainText=m.body;
         try{plainText=await decryptMsg(m.body,m.from_id);}catch(e){}
         /* Delete from server (E2E: ephemeral) */
@@ -757,7 +760,7 @@ function sbSubscribeMessages(){
         /* Game-themed notification */
         const gameNotifs=['\u{1F3B2} \u30B5\u30A4\u30B3\u30ED\u304C\u8EE2\u304C\u3063\u3066\u304D\u305F','\u{1F378} \u30D0\u30FC\u30C6\u30F3\u30C0\u30FC\u304B\u3089\u4F1D\u8A00','\u{1F0CF} \u30AB\u30FC\u30C9\u304C\u5C4A\u3044\u305F','\u2728 \u5E2D\u306B\u52D5\u304D\u304C\u3042\u3063\u305F'];
         const notifMsg=gameNotifs[Math.floor(Math.random()*gameNotifs.length)];
-        showGameNotif(senderName,notifMsg,senderAv);
+        console.log('[BAR NOIR] notif:',senderName,notifMsg,'perm:'+Notification.permission); showGameNotif(senderName,notifMsg,senderAv);
         sendBrowserNotif('\u{1F378} BAR NOIR',senderName+' - '+notifMsg);
         /* If chatting with sender, add to chat in real-time */
         if(sbChatTarget&&sbChatTarget.id===m.from_id){
@@ -767,7 +770,7 @@ function sbSubscribeMessages(){
           updateChatMsgs();
         }
       }
-    }).subscribe();
+    }).subscribe((status)=>{ console.log('[BAR NOIR] msgs channel:',status); });
   // Also subscribe to friend requests
   sb.channel('friends-'+sbProfile.id)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'friends',filter:'friend_id=eq.'+sbProfile.id},async payload=>{
@@ -1136,7 +1139,8 @@ function startGame(i){
   show('game');renderGame();
 }
 
-function renderGame(){
+function restoreGameUI(){ const dz=document.querySelector('.dz');if(dz)dz.style.display=''; const ss=document.getElementById('ssDiv');if(ss)ss.style.display=''; const opp=document.getElementById('oppSmall');if(opp)opp.style.display=''; const rnd=document.querySelector('.g-rnd');if(rnd)rnd.style.display=''; const cd=document.getElementById('chatDiv');if(cd){cd.style.flex='';cd.style.display='';cd.style.flexDirection='';} const gb=document.getElementById('gBody');if(gb){gb.style.display='';gb.style.flexDirection='';} }
+function renderGame(){ restoreGameUI();
   document.getElementById('gRnd').textContent=Math.min(round,13);
   document.getElementById('dTurn').textContent=myTurn?'あなたのターン':curOpp.name+'のターン...';
   const btn=document.getElementById('dBtn');
