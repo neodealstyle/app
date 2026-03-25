@@ -779,6 +779,23 @@ function sbSubscribeMessages(){
         sendBrowserNotif('🍸 BAR NOIR',name+'がフレンドになりました');
       }
     }).subscribe();
+
+  /* Subscribe to friend requests */
+  sb.channel('freq-'+sbProfile.id)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'friend_requests',filter:'to_id=eq.'+sbProfile.id},async payload=>{
+      const r=payload.new;
+      if(r){
+        let name='誰か';
+        try{
+          const{data}=await sb.from('profiles').select('nick').eq('id',r.from_id).limit(1);
+          if(data&&data[0])name=data[0].nick;
+        }catch(e){}
+        showGameNotif(name,'フレンド申請が届きました！','📬');
+        sendBrowserNotif('🍸 BAR NOIR',name+'からフレンド申請が届きました');
+        /* Auto-refresh pending list if on seats tab */
+        if(typeof loadPendingRequests==='function')loadPendingRequests();
+      }
+    }).subscribe();
 }
 
 // Search user by invite code (for adding friends)
@@ -1012,15 +1029,29 @@ function lobTab(btn,tab){
     if(typeof loadSbFriends==='function')loadSbFriends();
     loadPendingRequests();
   }else if(tab==='games'){
-    let h='<div class="g-list">';
-    if(U&&U.friends&&U.friends.length>0){
-      U.friends.forEach((f,i)=>{
-        h+='<div class="f-item" onclick="pickFriend('+i+')">';
-        h+='<span class="f-nick">'+(f.nick||f.name)+'</span>';
-        h+='<span class="f-status">🎲 対戦</span></div>';
-      });
-    }else{h+='<div class="empty-msg">フレンドを追加してゲームしよう！</div>';}
-    h+='</div>';
+    let h='';
+    const sbF=sbFriendsList||[];
+    if(selectedOpp!==null&&sbF[selectedOpp]){
+      /* Friend selected — show game list */
+      const selF=sbF[selectedOpp];
+      h='<div class="g-list">';
+      h+='<div class="fr-divider">🎮 '+selF.nick+' と遊ぶ</div>';
+      h+='<div class="f-item" onclick="startGameWithFriend()"><span class="f-nick">🎲 ヤッツィー</span><span class="f-status">遊べる</span></div>';
+      h+='<div class="f-item" style="opacity:0.5"><span class="f-nick">🃏 ブラックジャック</span><span class="f-status">🔒 準備中</span></div>';
+      h+='<div class="f-item" style="opacity:0.5"><span class="f-nick">🃏 ポーカー</span><span class="f-status">🔒 準備中</span></div>';
+      h+='<div style="text-align:center;margin-top:12px"><button class="fr-btn" onclick="selectedOpp=null;lobTab(null,\'games\')">← 戻る</button></div>';
+      h+='</div>';
+    } else {
+      h='<div class="g-list">';
+      if(sbF.length>0){
+        sbF.forEach((f,i)=>{
+          h+='<div class="f-item" onclick="pickFriend('+i+')">';
+          h+='<span class="f-nick">'+f.nick+'</span>';
+          h+='<span class="f-status">🎲 対戦</span></div>';
+        });
+      }else{h+='<div class="empty-msg">フレンドを追加してゲームしよう！</div>';}
+      h+='</div>';
+    }
     bd.innerHTML=h;
   }else if(tab==='friend'){
     let h='<div class="fr-wrap">';
@@ -1056,6 +1087,21 @@ function pickGame(game){
 function pickFriend(i){
   selectedOpp=i;selectedGame=null;
   navTo('games');
+}
+
+function startGameWithFriend(){
+  if(selectedOpp===null)return;
+  const sbF=sbFriendsList||[];
+  const f=sbF[selectedOpp];
+  if(!f)return;
+  sbChatTarget={id:f.id,nick:f.nick};
+  curOpp={name:f.nick,av:getOppAv(f)||'😎',isAI:false,id:f.id};
+  selectedGame='yazzzy';selectedOpp=null;
+  round=1;myTurn=true;myScores={};oppScores={};
+  dice=[0,0,0,0,0];held=[0,0,0,0,0];rolls=3;
+  chatMsgs=[];
+  document.getElementById('gTitle').textContent='vs '+f.nick;
+  loadSbChatHistory(f.id).then(()=>{show('game');renderGame();});
 }
 
 function genInvite(){
@@ -1621,7 +1667,7 @@ function openSbChat(userId,nick){
   // Load existing messages
   loadSbChatHistory(userId).then(()=>{
     show('game');
-    updChat();
+    renderChat);
   });
 }
 async function loadSbChatHistory(friendId){
