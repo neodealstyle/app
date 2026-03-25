@@ -740,27 +740,30 @@ function sbSubscribeMessages(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'to_id=eq.'+sbProfile.id},async payload=>{
       const m=payload.new;
       if(m){
-        // Decrypt message and delete from server
-        try{m.body=await decryptMsg(m.body,m.from_id);}catch(e){}
+        /* Decrypt once */
+        let plainText=m.body;
+        try{plainText=await decryptMsg(m.body,m.from_id);}catch(e){}
+        /* Delete from server (E2E: ephemeral) */
         try{await sb.from('messages').delete().eq('id',m.id);}catch(e){}
-        // Fetch sender profile for display
-        let senderName='誰か',senderAv='💬';
+        /* Fetch sender profile for avatar */
+        let senderName='\u8AB0\u304B',senderAv='\u{1F4AC}';
         try{
-          const{data}=await sb.from('profiles').select('nick,av_type,av_idx').eq('id',m.from_id).limit(1);
+          const{data}=await sb.from('profiles').select('nick,av_type,av_idx,gender').eq('id',m.from_id).limit(1);
           if(data&&data[0]){
             senderName=data[0].nick;
-            const avList=['😎','🧑','👩','💀','🤖','😺'];
-            senderAv=avList[data[0].av_idx||0]||'💬';
+            senderAv=getOppAv({avType:data[0].av_type,avIdx:data[0].av_idx,gender:data[0].gender,av:'\u{1F60E}'})||'\u{1F60E}';
           }
         }catch(e){}
-        // In-app game-style notification
-        const preview=m.body.length>30?m.body.substring(0,30)+'…':m.body;
-        showGameNotif(senderName,preview,senderAv);
-        // Browser notification (for background)
-        sendBrowserNotif('🍸 BAR NOIR',senderName+': '+preview);
-        // If currently chatting with sender, add to chat
+        /* Game-themed notification */
+        const gameNotifs=['\u{1F3B2} \u30B5\u30A4\u30B3\u30ED\u304C\u8EE2\u304C\u3063\u3066\u304D\u305F','\u{1F378} \u30D0\u30FC\u30C6\u30F3\u30C0\u30FC\u304B\u3089\u4F1D\u8A00','\u{1F0CF} \u30AB\u30FC\u30C9\u304C\u5C4A\u3044\u305F','\u2728 \u5E2D\u306B\u52D5\u304D\u304C\u3042\u3063\u305F'];
+        const notifMsg=gameNotifs[Math.floor(Math.random()*gameNotifs.length)];
+        showGameNotif(senderName,notifMsg,senderAv);
+        sendBrowserNotif('\u{1F378} BAR NOIR',senderName+' - '+notifMsg);
+        /* If chatting with sender, add to chat in real-time */
         if(sbChatTarget&&sbChatTarget.id===m.from_id){
-          decryptMsg(m.body,m.from_id).then(txt=>{chatMsgs.push({w:'them',n:senderName,t:txt,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});renderChat();}).catch(()=>{chatMsgs.push({w:'them',n:senderName,t:m.body,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});renderChat();});
+          chatMsgs.push({w:'them',n:senderName,t:plainText,ts:Date.now(),dur:m.timer||300,
+            time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});
+          startChatTimer();
           updateChatMsgs();
         }
       }
@@ -790,8 +793,8 @@ function sbSubscribeMessages(){
           const{data}=await sb.from('profiles').select('nick').eq('id',r.from_id).limit(1);
           if(data&&data[0])name=data[0].nick;
         }catch(e){}
-        showGameNotif(name,'フレンド申請が届きました！','📬');
-        sendBrowserNotif('🍸 BAR NOIR',name+'からフレンド申請が届きました');
+        showGameNotif(name,'🃏 新しい挑戦者が現れた','📬');
+        sendBrowserNotif('🍸 BAR NOIR',name+'が対戦を申し込んでいます');
         /* Auto-refresh pending list if on seats tab */
         if(typeof loadPendingRequests==='function')loadPendingRequests();
       }
@@ -1332,7 +1335,17 @@ function endGame(){
     setTimeout(()=>document.getElementById('burnOL').classList.remove('on'),3200);},1500);
 }
 
-function endGameBack(){navTo('seats');}
+function endGameBack(){
+  sbChatTarget=null;curOpp=null;
+  /* Restore game elements visibility for next time */
+  const dz=document.querySelector('.dz');if(dz)dz.style.display='';
+  const ss=document.getElementById('ssDiv');if(ss)ss.style.display='';
+  const opp=document.getElementById('oppSmall');if(opp)opp.style.display='';
+  const rnd=document.querySelector('.g-rnd');if(rnd)rnd.style.display='';
+  const cd=document.getElementById('chatDiv');if(cd){cd.style.flex='';cd.style.display='';cd.style.flexDirection='';} const gb=document.getElementById('gBody');if(gb){gb.style.display='';gb.style.flexDirection='';}
+  if(chatTimer){clearInterval(chatTimer);chatTimer=null;}
+  navTo('seats');
+}
 
 function renderOppSmall(){
   if(!curOpp)return;
@@ -1419,7 +1432,7 @@ function renderChat(){
     [1800,'30分'],[3600,'1時間'],[5400,'1.5時間'],[7200,'2時間'],[9000,'2.5時間'],[10800,'3時間'],
     [12600,'3.5時間'],[14400,'4時間'],[16200,'4.5時間'],[18000,'5時間'],[19800,'5.5時間'],[21600,'6時間']];
   let selH='';timerOpts.forEach(([v,l])=>{selH+=`<option value="${v}"${v===curTimerVal?' selected':''}>${l}</option>`;});
-  let h=`<div class="chat-msgs" id="chatMsgsArea">${buildMsgsHtml()}</div>`;
+  let msgsStyle=sbChatTarget?' style="flex:1;max-height:none;overflow-y:auto"':''; let h=`<div class="chat-msgs" id="chatMsgsArea"${msgsStyle}>${buildMsgsHtml()}</div>`;
   h+=`<div class="chat-timer"><span>🔥 無料開放中</span>
     <select id="timerSel" class="chat-tsel" onchange="curTimerVal=parseInt(this.value)">${selH}</select></div>`;
   h+=`<div class="chat-bar"><textarea class="chat-in" id="chatIn" placeholder="..." rows="1"></textarea><button class="chat-send" onclick="sendMsg()">▶</button></div>`;
@@ -1663,11 +1676,24 @@ let sbChatTarget=null;
 function openSbChat(userId,nick){
   sbChatTarget={id:userId,nick};
   chatMsgs=[];
-  document.getElementById('gTitle').textContent='💬 '+nick;
-  // Load existing messages
+  /* Set curOpp for avatar display in chat */
+  const friendProfile=(sbFriendsList||[]).find(f=>f.id===userId);
+  curOpp={name:nick,av:friendProfile?getOppAv(friendProfile):'\u{1F60E}',isAI:false,id:userId,
+    avType:friendProfile?friendProfile.av_type:null,avIdx:friendProfile?friendProfile.av_idx:null,
+    gender:friendProfile?friendProfile.gender:null};
+  document.getElementById('gTitle').textContent='\u{1F4AC} '+nick;
+  /* Hide game elements, show chat full-screen */
+  document.querySelector('.dz').style.display='none';
+  document.getElementById('ssDiv').style.display='none';
+  document.getElementById('oppSmall').style.display='none';
+  document.querySelector('.g-rnd').style.display='none'; document.getElementById('gBody').style.display='flex'; document.getElementById('gBody').style.flexDirection='column';
+  document.getElementById('chatDiv').style.flex='1';
+  document.getElementById('chatDiv').style.display='flex';
+  document.getElementById('chatDiv').style.flexDirection='column';
   loadSbChatHistory(userId).then(()=>{
     show('game');
     renderChat();
+    startChatTimer();
   });
 }
 async function loadSbChatHistory(friendId){
