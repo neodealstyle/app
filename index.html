@@ -1667,7 +1667,7 @@ function openSbChat(userId,nick){
   // Load existing messages
   loadSbChatHistory(userId).then(()=>{
     show('game');
-    renderChat);
+    renderChat();
   });
 }
 async function loadSbChatHistory(friendId){
