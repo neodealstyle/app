@@ -546,18 +546,19 @@ let sbProfile=null; // profiles row
 async function sbInit(){ try{ /* Anonymous sign-in */ let{data,error}=await sb.auth.getSession(); if(!data.session){ const res=await sb.auth.signInAnonymously(); if(res.error)console.warn('sbAuth:',res.error.message); else sbUser=res.data.user; }else{sbUser=data.session.user;} /* Load profile if local user exists */ if(U&&U.sbId){ const{data:p}=await sb.from('profiles').select('*').eq('id',U.sbId).single(); if(p)sbProfile=p; else{ /* sbId exists but profile not found - try by nick */ const{data:pn}=await sb.from('profiles').select('*').ilike('nick',U.nick).single(); if(pn){sbProfile=pn;U.sbId=pn.id;save();} else{ /* Create new profile */ const id=await sbSaveProfile(U.nick,U.gender||'m',''); if(id){U.sbId=id;save();} } } } else if(U&&!U.sbId){ /* No sbId - try to find existing profile by nick */ const{data:pn}=await sb.from('profiles').select('*').ilike('nick',U.nick).single(); if(pn){sbProfile=pn;U.sbId=pn.id;save();console.log('sbInit: linked existing profile',pn.nick);} else{ /* Create new profile */ const id=await sbSaveProfile(U.nick,U.gender||'m',''); if(id){U.sbId=id;save();console.log('sbInit: created new profile',id);} } } /* After profile is set, load friends and pending requests */ if(sbProfile){loadSbFriends();loadPendingRequests();sbSubscribeMessages();} }catch(e){console.warn('sbInit:',e);} }
 
 // Save profile to Supabase
-async function sbSaveProfile(nick,gender,invCode){
+async function sbSaveProfile(nick,gender,invCode,parentId){
   if(!sbUser)return null;
   try{
-    const{data,error}=await sb.from('profiles').insert({
-      nick,gender,av_type:'base',av_idx:0,gold:100
-    }).select().single();
+    const row={nick,gender,av_type:'base',av_idx:0,gold:100};
+    if(parentId)row.parent_id=parentId;
+    if(window._regPwHash)row.pw_hash=window._regPwHash;
+    if(window._regQ)row.secret_q=window._regQ;
+    if(window._regA)row.secret_a=window._regA;
+    const{data,error}=await sb.from('profiles').insert(row).select().single();
     if(error){console.warn('sbSave:',error.message);return null;}
-    sbProfile=data;
-    return data.id;
+    sbProfile=data; return data.id;
   }catch(e){console.warn('sbSaveProfile:',e);return null;}
 }
-
 // Save invite code to Supabase
 async function sbSaveInviteCode(code){
   if(!sb)return;
