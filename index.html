@@ -1599,7 +1599,7 @@ async function loadSbFriends(){
     if(!data)return;
     const ids=data.map(r=>r.user_id===sbProfile.id?r.friend_id:r.user_id).filter(id=>id!==sbProfile.id);
     if(ids.length===0){sbFriendsList=[];return;}
-    const{data:profiles}=await sb.from('profiles').select('id,nick').in('id',ids);
+    const{data:profiles}=await sb.from('profiles').select('id,nick,av_type,av_idx,gender').in('id',ids);
     sbFriendsList=profiles||[];
   }catch(e){sbFriendsList=[];}
 }
@@ -1678,9 +1678,7 @@ function openSbChat(userId,nick){
   chatMsgs=[];
   /* Set curOpp for avatar display in chat */
   const friendProfile=(sbFriendsList||[]).find(f=>f.id===userId);
-  curOpp={name:nick,av:friendProfile?getOppAv(friendProfile):'\u{1F60E}',isAI:false,id:userId,
-    avType:friendProfile?friendProfile.av_type:null,avIdx:friendProfile?friendProfile.av_idx:null,
-    gender:friendProfile?friendProfile.gender:null};
+  curOpp={name:nick,isAI:false,id:userId, avType:friendProfile?friendProfile.av_type:null,avIdx:friendProfile?friendProfile.av_idx:null, gender:friendProfile?friendProfile.gender:null, av:friendProfile?getOppAv({avType:friendProfile.av_type,avIdx:friendProfile.av_idx,gender:friendProfile.gender,av:'\u{1F60E}'}):'\u{1F60E}'};
   document.getElementById('gTitle').textContent='\u{1F4AC} '+nick;
   /* Hide game elements, show chat full-screen */
   document.querySelector('.dz').style.display='none';
@@ -1704,7 +1702,7 @@ async function loadSbChatHistory(friendId){
       .or(`and(from_id.eq.${sbProfile.id},to_id.eq.${friendId}),and(from_id.eq.${friendId},to_id.eq.${sbProfile.id})`)
       .order('created_at',{ascending:true}).limit(50);
     if(data){
-      const msgs=[]; for(const m of data){ let txt=m.body; try{txt=await decryptMsg(txt,m.from_id===sbProfile.id?m.to_id:m.from_id);}catch(e){} msgs.push({ w:m.from_id===sbProfile.id?'me':'them', n:m.from_id===sbProfile.id?(U?U.nick:'自分'):sbChatTarget.nick, t:txt }); } chatMsgs=msgs;
+      const msgs=[]; for(const m of data){ let txt=m.body; try{txt=await decryptMsg(txt,m.from_id===sbProfile.id?m.to_id:m.from_id);}catch(e){} const cd=new Date(m.created_at); msgs.push({ w:m.from_id===sbProfile.id?'me':'them', n:m.from_id===sbProfile.id?(U?U.nick:'自分'):sbChatTarget.nick, t:txt, ts:cd.getTime(), dur:m.timer||300, time:cd.getHours()+':'+String(cd.getMinutes()).padStart(2,'0') }); } chatMsgs=msgs;
     }
   }catch(e){}
 }
