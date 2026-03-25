@@ -764,7 +764,7 @@ function sbSubscribeMessages(){
         sendBrowserNotif('🍸 BAR NOIR',senderName+': '+preview);
         // If currently chatting with sender, add to chat
         if(sbChatTarget&&sbChatTarget.id===m.from_id){
-          chatMsgs.push({w:'them',n:senderName,t:m.body,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});
+          decryptMsg(m.body,m.from_id).then(txt=>{chatMsgs.push({w:'them',n:senderName,t:txt,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});renderChat();}).catch(()=>{chatMsgs.push({w:'them',n:senderName,t:m.body,ts:Date.now(),dur:m.timer||300,time:new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')});renderChat();});
           updateChatMsgs();
         }
       }
@@ -1620,11 +1620,7 @@ async function loadSbChatHistory(friendId){
       .or(`and(from_id.eq.${sbProfile.id},to_id.eq.${friendId}),and(from_id.eq.${friendId},to_id.eq.${sbProfile.id})`)
       .order('created_at',{ascending:true}).limit(50);
     if(data){
-      chatMsgs=data.map(m=>({
-        w:m.from_id===sbProfile.id?'me':'them',
-        n:m.from_id===sbProfile.id?(U?U.nick:'自分'):sbChatTarget.nick,
-        t:m.body
-      }));
+      const msgs=[]; for(const m of data){ let txt=m.body; try{txt=await decryptMsg(txt,m.from_id===sbProfile.id?m.to_id:m.from_id);}catch(e){} msgs.push({ w:m.from_id===sbProfile.id?'me':'them', n:m.from_id===sbProfile.id?(U?U.nick:'自分'):sbChatTarget.nick, t:txt }); } chatMsgs=msgs;
     }
   }catch(e){}
 }
