@@ -1353,7 +1353,7 @@ function endGameBack(){
 
 function renderOppSmall(){
   if(!curOpp)return;
-  document.getElementById('oppSmall').innerHTML=`<span class="opp-av">${getOppAv(curOpp)}</span><div><div class="opp-nm">${curOpp.name}</div><div class="opp-lv">Lv.${curOpp.lv}</div></div>`;
+  document.getElementById('oppSmall').innerHTML=`<span class="opp-av">${getOppAv(curOpp)}</span><div><div class="opp-nm">${curOpp.name}</div><div class="opp-lv">Lv.${curOpp.lv||1}</div></div>`;
 }
 
 let chatTimer=null;
