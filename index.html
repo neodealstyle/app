@@ -554,10 +554,12 @@ async function sbSaveProfile(nick,gender,invCode){
 async function sbSaveInviteCode(code){
   if(!sb)return;
   try{
-    await sb.from('invite_codes').insert({code:code.toUpperCase()});
+    await sb.from('invite_codes').insert({code:code.toUpperCase(),created_by:sbProfile?sbProfile.id:null});
   }catch(e){console.warn('sbSaveCode:',e);}
 }
 
+// Load descendant count for root user
+async function loadDescCount(){ if(!U||!U._r||!sb||!sbProfile)return; try{ const{count}=await sb.from('profiles').select('*',{count:'exact',head:true}); const el=document.getElementById('descCnt'); if(el)el.textContent='招待ネットワーク: '+(count>1?(count-1)+'人が参加中':'まだ誰もいません'); }catch(e){} }
 // Check invite code in Supabase
 async function sbCheckInvite(code){
   try{
@@ -780,7 +782,7 @@ async function sbFindUserByCode(code){
 
 // ===== UTIL =====
 function _h(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return h.toString(36);}
-const _MK='yjyp5o';// pre-computed hash
+const _MK='l4c0oq';// pre-computed hash
 // ===== STATE =====
 const FREE_PERIOD = true; // 無料開放中フラグ（課金実装時にfalseへ）
 let U = JSON.parse(localStorage.getItem('bn_user') || 'null');
@@ -861,7 +863,8 @@ setTimeout(()=>{
 },3000);
 
 // ===== INVITE =====
-async function checkInvite(){
+async let _invParentId=null;
+function checkInvite(){
   const code=document.getElementById('invCode').value.trim().toLowerCase();
   if(!code){return;}
   const codeUpper=code.toUpperCase();
@@ -879,7 +882,7 @@ async function checkInvite(){
   let sbCode=null;
   if(!localValid&&sb){
     sbCode=await sbCheckInvite(codeUpper);
-    if(sbCode)localValid=true;
+    if(sbCode){localValid=true;_invParentId=sbCode.created_by||null;}
   }
   if(localValid){
     try{const stored=localStorage.getItem('bn_codes');
@@ -924,7 +927,7 @@ async function doRegister(){
   U={pw,q,a,gender,nick,gold:100,codes:[],avIdx:0,_r:_h(usedCode)===_MK};
   save();
   // Save to Supabase
-  sbSaveProfile(nick,gender,usedCode).then(id=>{
+  sbSaveProfile(nick,gender,usedCode,_invParentId).then(id=>{
     if(id){U.sbId=id;save();sbSubscribeMessages();}
   });
   show('lobby');
@@ -1014,7 +1017,7 @@ function lobTab(btn,tab){
       U.codes.forEach(c=>{h+='<div class="inv-item" style="display:flex;align-items:center;justify-content:space-between">'+(c.used?'✅':'📋')+' '+c.code+(!c.used?' <button class="fr-btn" style="margin-left:8px;padding:2px 10px;font-size:0.85em" onclick="copyCode(\''+c.code+'\')">📋 コピー</button>':'')+'</div>';});
       h+='</div>';
     }
-    h+='<button class="inv-btn" onclick="genInvite()">📨 新しい招待コードを発行</button>';
+    if(U&&U._r){h+='<div id="descCnt" style="text-align:center;color:#c0a060;font-size:12px;margin:8px 0;">招待ネットワーク: 読込中...</div>';} h+='<button class="inv-btn" onclick="genInvite()">📨 新しい招待コードを発行</button>';
     h+='</div>';
     bd.innerHTML=h;
   }
