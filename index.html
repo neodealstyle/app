@@ -1015,13 +1015,13 @@ function lobTab(btn,tab){
     if(!U||!U.friends||U.friends.length===0){
       const sbF=sbFriendsList||[];
       if(sbF.length===0){h='<div class="empty-msg">まだフレンドがいないよ。<br>下の検索から探してみよう！</div>';}
-      else{h='<div class="f-list">';sbF.forEach((f,i)=>{h+='<div class="f-item" onclick="openSbChat(\''+f.id+'\',\''+f.nick+'\')">';h+='<span class="f-nick">'+f.nick+'</span>';h+='<span class="f-status">💬</span></div>';});h+='</div>';}
+      else{h='<div class="f-list">';sbF.forEach((f,i)=>{h+='<div class="f-item" onclick="pickFriend('+i+')">';h+='<span class="f-nick">'+f.nick+'</span>';h+='<span class="f-status">💬</span></div>';});h+='</div>';}
     }else{
       h='<div class="f-list">';
       U.friends.forEach((f,i)=>{h+='<div class="f-item" onclick="pickFriend('+i+')"><span class="f-nick">'+(f.nick||f.name)+'</span><span class="f-status">🎲</span></div>';});
       h+='</div>';
       const sbF=sbFriendsList||[];
-      if(sbF.length>0){sbF.forEach(f=>{h+='<div class="f-item" onclick="openSbChat(\''+f.id+'\',\''+f.nick+'\')">';h+='<span class="f-nick">'+f.nick+'</span><span class="f-status">💬</span></div>';});}
+      if(sbF.length>0){sbF.forEach((f,i)=>{h+='<div class="f-item" onclick="pickFriend('+i+')">';h+='<span class="f-nick">'+f.nick+'</span><span class="f-status">💬</span></div>';});}
     }
     h+='<div class="fr-divider">🔍 フレンド検索</div>';
     h+='<div class="fr-search">';
@@ -1402,17 +1402,7 @@ function buildMsgsHtml(){
   let h='';
   chatMsgs.forEach((m,i)=>{
     if(m.w==='sys'){h+=`<div class="chat-sys">${m.t}</div>`;}
-    else if(m.expired){
-      let status='';
-      if(m.w==='me'){
-        if(m.read&&!m.readNotifyDone){status='<span style="color:#60a060;font-size:9px">✓ 既読</span>';}
-        else if(m.read&&m.readNotifyDone){status='';}
-        else if(m.unread){status='<span style="color:#a08040;font-size:9px">未読</span>';}
-      }else{status='<span style="color:#605040;font-size:9px">消滅済み</span>';}
-      if(!(m.w==='me'&&m.read&&m.readNotifyDone)){
-        h+=`<div class="chat-ln" style="opacity:.4"><span class="chat-tm">${m.time||''}</span> 🔥 ${m.w==='me'?'送信済み':'受信済み'} ${status} <button class="chat-del" onclick="delMsg(${i})">×</button></div>`;
-      }
-    }else{
+    else if(m.expired){ /* timer expired - message vanishes */ }else{
       const isMe=m.w==='me';
       const rem=m.ts?Math.max(0,m.dur-Math.floor((Date.now()-m.ts)/1000)):0;
       const hrs=Math.floor(rem/3600);const mins=Math.floor((rem%3600)/60);const secs=rem%60;
