@@ -1147,7 +1147,7 @@ function renderGame(){ restoreGameUI();
   btn.disabled=!myTurn||rolls<=0;
   btn.textContent=myTurn?'🎲 振る':'相手の番...';
   document.getElementById('dRolls').textContent=rolls;
-  renderDice();renderSS();renderOppSmall();renderChat();
+  renderDice();renderSS();renderOppSmall();renderChat();startChatTimer();
 }
 
 function renderDice(){
@@ -1404,7 +1404,7 @@ function buildMsgsHtml(){
     if(m.w==='sys'){h+=`<div class="chat-sys">${m.t}</div>`;}
     else if(m.expired){ /* timer expired - message vanishes */ }else{
       const isMe=m.w==='me';
-      const rem=m.ts?Math.max(0,m.dur-Math.floor((Date.now()-m.ts)/1000)):0;
+      const rem=m.ts?Math.max(0,m.dur-Math.floor((Date.now()-m.ts)/1000)):0; if(rem<=0)return;
       const hrs=Math.floor(rem/3600);const mins=Math.floor((rem%3600)/60);const secs=rem%60;
       const tStr=hrs>0?hrs+':'+String(mins).padStart(2,'0')+':'+String(secs).padStart(2,'0'):mins>0?mins+':'+String(secs).padStart(2,'0'):secs+'s';
       h+=`<div class="chat-ln">
